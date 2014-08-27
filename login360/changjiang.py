@@ -18,6 +18,7 @@ def select(name):
            list.append([line.split("----")[0].strip().strip("\n"),line.split("----")[1].strip().strip("\n")]) 
         else:
            list.append(u"%s"%line.strip().strip("\n"))
+        
     return choice(list)
 def redIp():
     list = []
@@ -56,15 +57,11 @@ class webDrive:
         print self.user_passwd
         #用户名
         self.u_name = string.join(random.sample(['z','y','x','w','v','u','t','s','r','q','p','o','n','m','l','k','j','i','h','g','f','e','d','c','b','a'], 13)).replace(' ','')
-        #搜索关键字
-        self.keyWords = self.searchKeyWords()
-        #评论
-        self.comment = select("comment.txt")
         #任务开始时间
         self.begin=time.time()
         # 初始化driver
-        self.proxyTest()
-#       self.driver = webdriver.Chrome()
+#        self.proxyTest()
+        self.driver = webdriver.Chrome()
     def proxyTest(self):
         self.ip_Port = redIp()
         chrome_options = webdriver.ChromeOptions()
@@ -77,14 +74,14 @@ class webDrive:
         kw = []
         for line in open("keywords.txt"):
             kw.append(u"%s"%line.strip().strip("\n"))
-        return kw
+        return choice(kw)
     def login(self):
         try:
             self.driver.get('http://www.so.com')
             WebDriverWait(self.driver,2).until(EC.presence_of_element_located((By.ID,"user-login")))
         except Exception,e:
             print "open www.so.com fail:%s"%e
-            deleteIp('%s'%self.ip_Port)
+            #deleteIp('%s'%self.ip_Port)
             self.closeWebDrive()
             return "loginTimeOut"
         print self.driver.title
@@ -111,80 +108,76 @@ class webDrive:
             else:
                  if time.time()-self.begin > 60:
                     self.closeWebDrive()   
-    def checkUserName(self): 
+    def checkUserName(self):
+        self.sleep()
         try:
-            WebDriverWait(self.driver,4).until(EC.presence_of_element_located((By.ID,"pspUserName")))
+            self.driver.find_element_by_id("pspUserName").send_keys("%s"%self.u_name)
+            self.driver.find_element_by_id("btn-submitName").click()
         except Exception,e:
-            print e
-            pass  
-        else:
-            try:
-                self.driver.find_element_by_id("pspUserName").send_keys("%s"%self.u_name)
-                self.driver.find_element_by_id("btn-submitName").click()
-                while(1):
-                    try:
-                        WebDriverWait(self.driver,5).until(EC.presence_of_element_located((By.ID,"loginAccount")))
-                    except Exception,e:
-                        print e
-                        break    
-                
-            except Exception,e:
-                print "find element pspUserName failed:%s"%e
-                self.sleep()
-                self.flag = i
-                
-                pass
+            print "find element pspUserName failed:%s"%e
+            pass
     def search(self):
-        self.checkUserName()
-        if self.flag < 10:
-            for i in self.keyWords:
-               while(1):
+       self.sleep()
+       t1=time.time()
+       while(1):
+            try:
+                WebDriverWait(self.driver,3).until(EC.presence_of_element_located((By.ID,"btn-submitName")))
+            except:
+                try:
+                    inputElement = self.driver.find_element_by_id("input")
+                    inputElement.clear()
+                    inputElement.send_keys(u"%s"%self.searchKeyWords())
+                    self.sleep()
+                    self.driver.find_element_by_id("search-button").click()
+                    self.sleep()
+                    break
+                except :
                     try:
-                       if i == self.keyWords[0]:
-                           inputElement = self.driver.find_element_by_id("input")
-                           inputElement.clear()
-                           inputElement.send_keys(u"%s"%i)
-                           self.sleep()
-                           self.driver.find_element_by_id("search-button").click()
-                           self.sleep()
-                           break
-                       else:
-                           inputElement = self.driver.find_element_by_id("keyword")
-                           inputElement.clear().send_keys(u"%s"%i)
-                           self.sleep()
-                           self.driver.find_element_by_id("su").click()
-                           self.sleep()
-                           break
+                        inputElement = self.driver.find_element_by_id("keyword")
+                        inputElement.clear().send_keys(u"%s"%self.searchKeyWords())
+                        self.sleep()
+                        self.driver.find_element_by_id("su").click()
+                        self.sleep()
+                        break
                     except Exception,e:
-                       print "find element search-button faile:%s"%e
-                       self.sleep()
-                       if time.time()-self.begin > 60:
-                           self.closeWebDrive()
-                           return "searchTimeOut"
-                       pass
-               self.submitComment()
+                        print "find element search-button faile:%s"%e
+                        self.sleep()
+                        if time.time()-self.begin > 60:
+                             break
+                             return "searchTimeOut"
+                        pass
+            else:
+                if time.time() -t1 >30:
+                    self.closeWebDrive()
     def submitComment(self):
-        while(1):
-            try:
-                self.sleep()
-                self.driver.find_element_by_xpath("//*[@id='so-comment-inactive']/div/a").click()
-            except Exception,e:
-                print "can not find so-comment-inactive:%s"%e
-                pass
-            try:
-                self.sleep()
-                inputElement = self.driver.find_element_by_xpath("//*[@id='so_comment']/div[4]/div/div[4]/div/textarea")
-            except Exception,e:
-                print "can not find so-comment:%s"%e
-                pass
-            try:
-                print "test:%s"%self.comment
-                inputElement.send_keys(u"%s"%self.comment)
-                self.driver.find_element_by_xpath("//*[@id='so_comment']/div[4]/div/a[3]").click()
-                break
-            except Exception,e:
-                print "submitComment:%s"%e
-                return
+        try:
+            self.sleep()
+            self.driver.find_element_by_xpath("//*[@id='so-comment-inactive']/div/a").click()
+        except Exception,e:
+            print "can not find so-comment-inactive:%s"%e
+            pass
+        try:
+            self.sleep()
+            inputElement = self.driver.find_element_by_xpath("//*[@id='so_comment']/div[4]/div/div[4]/div/textarea")
+        except Exception,e:
+            print "can not find so-comment:%s"%e
+            self.closeWebDrive()
+            return
+        try:
+            for i in range(10):            
+                self.comment = select("comment.txt")
+                if self.comment != "":
+                    print "comment:%s"%self.comment
+                    inputElement.send_keys(u"%s"%self.comment)
+                    self.sleep()
+                    self.driver.find_element_by_xpath("//*[@id='so_comment']/div[4]/div/a[3]").click()
+                    self.sleep()
+                    break
+
+        except Exception,e:
+            print "submitComment:%s"%e
+            self.closeWebDrive()
+            return
         #self.driver.quit()
     def closeWebDrive(self):
         try:
@@ -194,8 +187,10 @@ class webDrive:
             pass
     def main(self):
         if self.login() != "loginTimeOut":
-            if self.search() != "searchTimeOut":
-               self.closeWebDrive()
+            if self.checkUserName() != "error":
+                if self.search() != "searchTimeOut":
+                   self.submitComment()
+                   self.closeWebDrive()
         else:
             self.closeWebDrive()
     
