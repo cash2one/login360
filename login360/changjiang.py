@@ -1,116 +1,205 @@
 ﻿# coding = utf-8
-
 from selenium import webdriver
 import time
 import string
 import random
+from random import choice
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
 import sys
 reload(sys)
 sys.setdefaultencoding("utf-8")
-site = ['www.bybyabc.com ','www.cjhospital.com','www.cjhospital.com ','http://www.cjhospital.com/lianxiwomen/ ','www.zgxby.com','http://www.cjhospital.com/nvxingbuyun/',\
-'http://www.cjhospital.com/nvxingbuyunjianchazhenduan/9519/2348.shtml','www.cjhospital.com...xiwomen/&nbsp']
-sou = ['上海长江医院 ','上海长江医院怎么样 ','上海长江医院地址 ','上海长江医院好不好','上海长江医院好吗 ','上海长江医院好 ','不孕不育医院哪家好 ',\
-'上海不孕不育医院哪家好 ','上海不孕不育医院哪个好','不孕不育检查项目 ','不孕不育检查项目有哪些','女性不孕不育检查项目']
-def webDrive(name,passwd):
-    t=time.time()
-    flag = 0
-    u_name = string.join(random.sample(['z','y','x','w','v','u','t','s','r','q','p','o','n','m','l','k','j','i','h','g','f','e','d','c','b','a'], 13)).replace(' ','')
-    driver = webdriver.Chrome()
-    driver.get('http://www.so.com')
-    time.sleep(1)
-    while(1):
+def select(name):
+    list = []
+    for line in open("%s"%name):
+        if "----" in line:
+           list.append([line.split("----")[0].strip().strip("\n"),line.split("----")[1].strip().strip("\n")]) 
+        else:
+           list.append(u"%s"%line.strip().strip("\n"))
+    return choice(list)
+def redIp():
+    list = []
+    for line in open("ip.txt",'r'):
+       if len(line.strip().split())>1:
+           PROXY = "%s:%s"%(line.strip().split()[0],line.strip().split()[1])
+           list.append(PROXY)
+       elif ":" in line:
+            PROXY= "%s:%s"%(line.strip().split(":")[0],line.strip().split(":")[1])
+            list.append(PROXY)
+       return choice(list)
+def deleteIp(delete):
+    list = []
+    file = open("ip.txt",'r')
+    for line in file:
+        if  len(line.strip().split())>1:
+            PROXY= "%s:%s"%(line.strip().split()[0],line.strip().split()[1])
+            list.append(PROXY)
+        elif ":" in line:
+            PROXY= "%s:%s"%(line.strip().split(":")[0],line.strip().split(":")[1])
+            list.append(PROXY)
+    file.close()
+    file = open("ip.txt","w+")
+    for i in list:
+        if i != delete:
+            file.write("%s"%i)
+            file.write("\n")
+    file.close()
+
+class webDrive:
+    def __init__(self):
+        self.flag = 0
+        self.sleepTime = 3
+        #获取登陆名和密码
+        self.user_passwd = select("user.txt")
+        print self.user_passwd
+        #用户名
+        self.u_name = string.join(random.sample(['z','y','x','w','v','u','t','s','r','q','p','o','n','m','l','k','j','i','h','g','f','e','d','c','b','a'], 13)).replace(' ','')
+        #搜索关键字
+        self.keyWords = self.searchKeyWords()
+        #评论
+        self.comment = select("comment.txt")
+        #任务开始时间
+        self.begin=time.time()
+        # 初始化driver
+        self.proxyTest()
+#       self.driver = webdriver.Chrome()
+    def proxyTest(self):
+        self.ip_Port = redIp()
+        chrome_options = webdriver.ChromeOptions()
+        chrome_options.add_argument('--proxy-server=http://%s' % self.ip_Port)
+        print self.ip_Port
+        self.driver = webdriver.Chrome(chrome_options = chrome_options)
+    def sleep(self):
+        time.sleep(self.sleepTime)
+    def searchKeyWords(self):
+        kw = []
+        for line in open("keywords.txt"):
+            kw.append(u"%s"%line.strip().strip("\n"))
+        return kw
+    def login(self):
         try:
-            driver.find_element_by_id("user-login").click()
-            time.sleep(2)
-            break
+            self.driver.get('http://www.so.com')
+            WebDriverWait(self.driver,2).until(EC.presence_of_element_located((By.ID,"user-login")))
         except Exception,e:
-            print "find element user-login faile:%s"%e
-    while(1):
+            print "open www.so.com fail:%s"%e
+            deleteIp('%s'%self.ip_Port)
+            self.closeWebDrive()
+            return "loginTimeOut"
+        print self.driver.title
+        while(1):
+            try:
+                self.driver.find_element_by_id("user-login").click()
+                WebDriverWait(self.driver,30).until(EC.presence_of_element_located((By.ID,"loginAccount")))
+                break
+            except Exception,e:
+                if time.time()-self.begin >60:
+                    self.closeWebDrive()
+                    return "loginTimeOut"
+                print "find element user-login faile:%s"%e
+        
+        self.driver.find_element_by_id("loginAccount").send_keys("%s"%self.user_passwd[0])
+        self.driver.find_element_by_id("lpassword").send_keys("%s"%self.user_passwd[1])
+        self.driver.find_element_by_id("loginSubmit").click()
+        while(1):
+            try:
+                WebDriverWait(self.driver,3).until(EC.presence_of_element_located((By.ID,"loginAccount")))
+            except Exception,e:
+                print e
+                break 
+            else:
+                 if time.time()-self.begin > 60:
+                    self.closeWebDrive()   
+    def checkUserName(self): 
         try:
-            inputElement = driver.find_element_by_id("loginAccount")
-            break
+            WebDriverWait(self.driver,4).until(EC.presence_of_element_located((By.ID,"pspUserName")))
         except Exception,e:
-            print "find element loginAccount failed:%s"%e
-            time.sleep(2)
+            print e
+            pass  
+        else:
+            try:
+                self.driver.find_element_by_id("pspUserName").send_keys("%s"%self.u_name)
+                self.driver.find_element_by_id("btn-submitName").click()
+                while(1):
+                    try:
+                        WebDriverWait(self.driver,5).until(EC.presence_of_element_located((By.ID,"loginAccount")))
+                    except Exception,e:
+                        print e
+                        break    
+                
+            except Exception,e:
+                print "find element pspUserName failed:%s"%e
+                self.sleep()
+                self.flag = i
+                
+                pass
+    def search(self):
+        self.checkUserName()
+        if self.flag < 10:
+            for i in self.keyWords:
+               while(1):
+                    try:
+                       if i == self.keyWords[0]:
+                           inputElement = self.driver.find_element_by_id("input")
+                           inputElement.clear()
+                           inputElement.send_keys(u"%s"%i)
+                           self.sleep()
+                           self.driver.find_element_by_id("search-button").click()
+                           self.sleep()
+                           break
+                       else:
+                           inputElement = self.driver.find_element_by_id("keyword")
+                           inputElement.clear().send_keys(u"%s"%i)
+                           self.sleep()
+                           self.driver.find_element_by_id("su").click()
+                           self.sleep()
+                           break
+                    except Exception,e:
+                       print "find element search-button faile:%s"%e
+                       self.sleep()
+                       if time.time()-self.begin > 60:
+                           self.closeWebDrive()
+                           return "searchTimeOut"
+                       pass
+               self.submitComment()
+    def submitComment(self):
+        while(1):
+            try:
+                self.sleep()
+                self.driver.find_element_by_xpath("//*[@id='so-comment-inactive']/div/a").click()
+            except Exception,e:
+                print "can not find so-comment-inactive:%s"%e
+                pass
+            try:
+                self.sleep()
+                inputElement = self.driver.find_element_by_xpath("//*[@id='so_comment']/div[4]/div/div[4]/div/textarea")
+            except Exception,e:
+                print "can not find so-comment:%s"%e
+                pass
+            try:
+                print "test:%s"%self.comment
+                inputElement.send_keys(u"%s"%self.comment)
+                self.driver.find_element_by_xpath("//*[@id='so_comment']/div[4]/div/a[3]").click()
+                break
+            except Exception,e:
+                print "submitComment:%s"%e
+                return
+        #self.driver.quit()
+    def closeWebDrive(self):
+        try:
+            self.driver.quit()
+        except Exception,e:
+            print e
             pass
-    inputElement.send_keys("%s"%name)
-    time.sleep(1)
-    inputElement = driver.find_element_by_id("lpassword")
-    inputElement.send_keys("%s"%passwd)
-    time.sleep(1)
-    for i in range(2):
-        try:
-            userName = driver.find_element_by_id("pspUserName")
-            userName.send_keys("%s"%u_name)
-            driver.find_element_by_id("btn-submitName").click()
-            time.sleep(30)
-            break
-        except Exception,e:
-            print "find element pspUserName failed:%s"%e
-            time.sleep(1)
-            flag = i
-            pass
-    if flag < 10:
-        for i in sou:
-            while(1):
-                try:
-                   if i == sou[0]:
-                       inputElement = driver.find_element_by_id("input")
-                       inputElement.send_keys(u"%s"%i)
-                       time.sleep(2)
-                       driver.find_element_by_id("search-button").click()
-                       time.sleep(3)
-                       break
-                   else:
-                       inputElement = driver.find_element_by_id("keyword")
-                       time.sleep(1)
-                       inputElement.clear()
-                       time.sleep(1)
-                       inputElement.send_keys(u"%s"%i)
-                       time.sleep(2)
-                       driver.find_element_by_id("su").click()
-                       time.sleep(3)
-                       break
-                except Exception,e:
-                   print "find element search-button faile:%s"%e
-                   time.sleep(3)
-                   if time.time()-t > 300:
-                       driver.quit()
-                       return
-                   pass
-            #li = driver.find_element_by_link_text("上海长江医院")
-            ul = len(driver.find_elements_by_css_selector("ul#m-result>li"))
-            print "ul:%s"%ul
-            for i in range(1,ul):
-               time.sleep(3)
-               try:
-                   #li = driver.find_element_by_xpath("//*[@id='m-result']/li[%d]/h3/a"%i).text
-                   li = driver.find_element_by_xpath("//*[@id='m-result']/li[%d]/p[2]/cite"%i).text
-                   print "li:%s"%li
-                   for s in site:
-                       if s in li:
-                          driver.find_element_by_xpath("//ul[@id='m-result']/li[%d]/p/div"%i).click()
-                          print "搜索排名：%s %d"%(s,i)
-                          time.sleep(2)
-                         
-                          
-               except Exception ,e:
-                   print "find element id=m-result/li[%d] faile:%s"%(i,e)
-                   pass     
-            print driver.title
-        driver.quit()
-    else:
-        driver.quit()
+    def main(self):
+        if self.login() != "loginTimeOut":
+            if self.search() != "searchTimeOut":
+               self.closeWebDrive()
+        else:
+            self.closeWebDrive()
     
 if __name__ == "__main__":
-    file = open("email.txt",'r')
     while(1):
-       f = file.readline()
-       if f:
-          s = f.split("----")
-          user = s[0]
-          password = s[1]
-          print user,password
-          if user and password:
-             webDrive(user,password)
-             time.sleep(3)
+        task = webDrive()
+        task.main()
